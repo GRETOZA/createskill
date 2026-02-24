@@ -272,6 +272,25 @@
         let effectBlockCounter = 0;
         let editingSkillId = null; // ตัวแปรเก็บสถานะว่ากำลังแก้ไขสกิลไหนอยู่
 
+        // โหลดข้อมูลจาก LocalStorage เมื่อเริ่มต้น
+        function loadData() {
+            const savedDB = localStorage.getItem('autoBattlerSkillDB');
+            const savedCounter = localStorage.getItem('autoBattlerSkillCounter');
+            
+            if (savedDB) {
+                skillDB = JSON.parse(savedDB);
+            }
+            if (savedCounter) {
+                skillCounter = parseInt(savedCounter);
+            }
+        }
+
+        // บันทึกข้อมูลลง LocalStorage
+        function saveDataToLocal() {
+            localStorage.setItem('autoBattlerSkillDB', JSON.stringify(skillDB));
+            localStorage.setItem('autoBattlerSkillCounter', skillCounter.toString());
+        }
+
         function removeEffectBlock(id) {
             document.getElementById(id).remove();
             updateLivePreview();
@@ -503,6 +522,7 @@
                 skillCounter++; // เพิ่ม Counter เฉพาะตอนสร้างใหม่
             }
 
+            saveDataToLocal(); // บันทึกข้อมูลหลังจากแก้ไขหรือสร้าง
             resetForm();
             renderSkillLibrary();
             renderSkillSelects();
@@ -546,6 +566,7 @@
             if (!confirm(`ยืนยันการลบสกิล [${skillDB[skillId].name}] หรือไม่?\n*หากสกิลนี้ถูกติดตั้งอยู่ จะถูกถอดออกอัตโนมัติ`)) return;
             
             delete skillDB[skillId];
+            saveDataToLocal(); // บันทึกข้อมูลหลังจากลบ
             
             // ถ้าลบสกิลที่กำลัง Edit อยู่ ให้รีเซ็ตฟอร์ม
             if (editingSkillId === skillId) {
@@ -654,7 +675,10 @@
             }, 10);
         }
 
+        // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
+        loadData();
         updateLivePreview();
+        renderSkillLibrary();
         renderSkillSelects();
 
         // -----------------------------------------------------------
