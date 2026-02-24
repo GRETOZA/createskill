@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Battler Combat Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap');
+        body { font-family: 'Prompt', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        
+        /* Checkbox styling */
+        input[type=checkbox] { accent-color: #6366f1; width: 1rem; height: 1rem; cursor: pointer; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+    <div class="w-full max-w-7xl">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2">⚔️ Auto-Battler System Studio</h1>
+            <p class="text-slate-400 text-sm">สร้างข้อมูลสกิลแบบ Dynamic Rule-based (สไตล์ Dulst) และทดสอบการทำงาน</p>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SECTION 1: SKILL BUILDER                   -->
+        <!-- ========================================== -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            
+            <!-- ซ้าย: ฟอร์มสร้างสกิลแบบ Dynamic -->
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg flex flex-col max-h-[800px]">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-3 mb-4 shrink-0">
+                    <h2 class="text-xl font-semibold text-purple-400" id="builder_title">🛠️ ระบบสร้างสกิล (Dynamic Builder)</h2>
+                    <span id="editing_badge" class="hidden bg-yellow-600/30 border border-yellow-500 text-yellow-300 text-xs px-2 py-1 rounded animate-pulse">กำลังแก้ไขสกิล</span>
+                </div>
+                
+                <div class="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1 pb-4" id="skill_form">
+                    <!-- ข้อมูลพื้นฐาน -->
+                    <div class="grid grid-cols-2 gap-4 bg-slate-900 p-4 rounded-lg border border-slate-700">
+                        <div class="col-span-2 text-sm font-semibold text-slate-300 border-b border-slate-700 pb-1">📄 ข้อมูลพื้นฐาน</div>
+                        <div class="col-span-2">
+                            <label class="block text-xs text-slate-400 mb-1">ชื่อสกิล (Name)</label>
+                            <input type="text" id="c_name" placeholder="เช่น ดาบดูดเลือด, ระเบิดพลีชีพ" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" oninput="updateLivePreview()">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs text-slate-400 mb-1">คำอธิบาย (Description)</label>
+                            <textarea id="c_desc" rows="2" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" oninput="updateLivePreview()"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">เวลาร่าย (Cast Time)</label>
+                            <input type="number" id="c_castTime" value="0" step="0.5" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" oninput="updateLivePreview()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">คูลดาวน์ (Cooldown)</label>
+                            <input type="number" id="c_cooldown" value="3.0" step="0.5" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white text-sm" oninput="updateLivePreview()">
+                        </div>
+                        <div class="col-span-2 flex items-center gap-2 mt-1">
+                            <input type="checkbox" id="c_uninterruptible" onchange="updateLivePreview()" class="w-4 h-4 accent-indigo-500 cursor-pointer">
+                            <label class="text-sm text-indigo-300 cursor-pointer" for="c_uninterruptible">🛡️ ต้านทานการถูกขัดจังหวะขณะร่าย (Super Armor)</label>
+                        </div>
+                    </div>
+
+                    <!-- หมวดหมู่ Effect แบบ Dynamic -->
+                    <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                        <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-3">
+                            <h3 class="text-sm font-semibold text-slate-300">⚙️ ลำดับผลลัพธ์ของสกิล (Effects Execution)</h3>
+                        </div>
+                        
+                        <!-- คอนเทนเนอร์สำหรับใส่ Effect Blocks -->
+                        <div id="dynamic_effects_container" class="space-y-3 mb-4">
+                            <!-- จะถูกเติมด้วย JS -->
+                        </div>
+
+                        <!-- ตัวเพิ่ม Effect -->
+                        <div class="flex gap-2 p-3 bg-slate-800/50 rounded border border-slate-700 border-dashed">
+                            <select id="new_effect_type" class="flex-1 bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                                <option value="CONDITION">❓ ตรวจสอบเงื่อนไข (Condition Gate)</option>
+                                <option value="DAMAGE">⚔️ สร้างความเสียหาย (Damage)</option>
+                                <option value="HEAL">💚 ฟื้นฟูพลังชีวิต (Heal)</option>
+                                <option value="INTERRUPT">🛑 ขัดจังหวะการร่าย (Interrupt)</option>
+                                <option value="STUN">💫 สถานะมึนงง (Stun)</option>
+                                <option value="BUFF_NEXT_SKILL">🔥 บัฟสกิลถัดไป (Empower)</option>
+                            </select>
+                            <button onclick="addEffectBlock()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 rounded transition text-sm shadow">
+                                + เพิ่มคำสั่ง
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="creator_error" class="hidden text-red-400 text-sm font-semibold text-center">
+                        ⚠️ กรุณาเพิ่ม Effect อย่างน้อย 1 คำสั่ง
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-4 border-t border-slate-700 shrink-0">
+                    <button id="cancel_edit_btn" onclick="resetForm()" class="hidden w-1/3 bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 rounded-lg shadow-lg transition transform active:scale-[0.98]">
+                        ❌ ยกเลิก
+                    </button>
+                    <button id="save_btn" onclick="saveSkill()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 rounded-lg shadow-lg transition transform active:scale-[0.98]">
+                        💾 บันทึกสกิลเข้าสู่ระบบ
+                    </button>
+                </div>
+            </div>
+
+            <!-- ขวา: Firestore Preview -->
+            <div class="bg-black rounded-xl border border-slate-700 shadow-lg flex flex-col overflow-hidden max-h-[800px]">
+                <div class="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center shrink-0">
+                    <h3 class="font-semibold text-orange-400">🗄️ โครงสร้าง JSON ของสกิล (Live)</h3>
+                    <span class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">Database Schema</span>
+                </div>
+                <div class="p-4 flex-1 bg-[#0d1117] overflow-y-auto custom-scrollbar">
+                    <pre id="live_json_preview" class="text-xs text-green-400 font-mono whitespace-pre-wrap leading-relaxed"></pre>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SECTION 2: SKILL LIBRARY                   -->
+        <!-- ========================================== -->
+        <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg mb-8">
+            <h2 class="text-xl font-semibold text-blue-400 mb-4 border-b border-slate-700 pb-2">📚 คลังสกิลในระบบ (Skill Database)</h2>
+            <div id="skill_library_container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div class="col-span-full text-center text-slate-500 py-6">
+                    ยังไม่มีสกิลในระบบ กรุณาสร้างสกิลจากด้านบน
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SECTION 3: SETUP STATS & EQUIP             -->
+        <!-- ========================================== -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            
+            <!-- ฝั่งผู้เล่น -->
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-4">
+                    <h2 class="text-xl font-semibold text-blue-400">1️⃣ ฝ่ายผู้เล่น (Player)</h2>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-slate-400">Max HP</label>
+                        <input type="number" id="p1_hp" value="1500" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-white text-right">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+                    <div class="col-span-2 text-sm font-semibold text-orange-300 mt-2 border-b border-slate-700/50 pb-1">⚔️ หมวดพลังโจมตี</div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีพื้นฐาน (Base ATK)</label><input type="number" id="p1_baseAtk" value="20" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีกายภาพ (Phys ATK)</label><input type="number" id="p1_physAtk" value="40" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีเวทมนตร์ (Mag ATK)</label><input type="number" id="p1_magAtk" value="10" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีคริติคอล (Crit ATK)</label><input type="number" id="p1_critAtk" value="50" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+
+                    <div class="col-span-2 text-sm font-semibold text-emerald-300 mt-2 border-b border-slate-700/50 pb-1">🛡️ หมวดพลังป้องกัน</div>
+                    <div class="col-span-2 grid grid-cols-3 gap-2">
+                        <div><label class="block text-[10px] text-slate-400">ป้องกันพื้นฐาน</label><input type="number" id="p1_baseDef" value="10" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">ป้องกันกายภาพ</label><input type="number" id="p1_physDef" value="15" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">ป้องกันเวทมนตร์</label><input type="number" id="p1_magDef" value="5" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    </div>
+
+                    <div class="col-span-2 text-sm font-semibold text-purple-300 mt-2 border-b border-slate-700/50 pb-1">✨ หมวดทักษะเสริม</div>
+                    <div class="col-span-2 grid grid-cols-3 gap-2">
+                        <div><label class="block text-[10px] text-slate-400">ความแม่นยำ (Accuracy)</label><input type="number" id="p1_accuracy" value="100" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">หลบหลีก (Evasion)</label><input type="number" id="p1_evasion" value="10" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">ค่าคริติคอล (CRI)</label><input type="number" id="p1_critChance" value="100" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 mt-4 bg-slate-900 p-3 rounded border border-slate-700" id="p1_skills_container">
+                    <label class="block text-xs font-semibold text-blue-300 mb-2 border-b border-slate-700 pb-1">📥 ติดตั้งสกิล (ซ้ายไปขวา)</label>
+                    <div id="p1_select_wrapper" class="space-y-1"></div>
+                </div>
+            </div>
+
+            <!-- ฝั่งศัตรู -->
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-4">
+                    <h2 class="text-xl font-semibold text-red-400">2️⃣ ฝ่ายศัตรู (Enemy)</h2>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-slate-400">Max HP</label>
+                        <input type="number" id="p2_hp" value="2000" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-white text-right">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+                    <div class="col-span-2 text-sm font-semibold text-orange-300 mt-2 border-b border-slate-700/50 pb-1">⚔️ หมวดพลังโจมตี</div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีพื้นฐาน (Base ATK)</label><input type="number" id="p2_baseAtk" value="25" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีกายภาพ (Phys ATK)</label><input type="number" id="p2_physAtk" value="30" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีเวทมนตร์ (Mag ATK)</label><input type="number" id="p2_magAtk" value="5" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    <div><label class="block text-[10px] text-slate-400">โจมตีคริติคอล (Crit ATK)</label><input type="number" id="p2_critAtk" value="40" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+
+                    <div class="col-span-2 text-sm font-semibold text-emerald-300 mt-2 border-b border-slate-700/50 pb-1">🛡️ หมวดพลังป้องกัน</div>
+                    <div class="col-span-2 grid grid-cols-3 gap-2">
+                        <div><label class="block text-[10px] text-slate-400">ป้องกันพื้นฐาน</label><input type="number" id="p2_baseDef" value="15" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">ป้องกันกายภาพ</label><input type="number" id="p2_physDef" value="20" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">ป้องกันเวทมนตร์</label><input type="number" id="p2_magDef" value="5" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    </div>
+
+                    <div class="col-span-2 text-sm font-semibold text-purple-300 mt-2 border-b border-slate-700/50 pb-1">✨ หมวดทักษะเสริม</div>
+                    <div class="col-span-2 grid grid-cols-3 gap-2">
+                        <div><label class="block text-[10px] text-slate-400">ความแม่นยำ (Accuracy)</label><input type="number" id="p2_accuracy" value="90" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">หลบหลีก (Evasion)</label><input type="number" id="p2_evasion" value="5" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                        <div><label class="block text-[10px] text-slate-400">ค่าคริติคอล (CRI)</label><input type="number" id="p2_critChance" value="50" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 mt-4 bg-slate-900 p-3 rounded border border-slate-700" id="p2_skills_container">
+                    <label class="block text-xs font-semibold text-red-300 mb-2 border-b border-slate-700 pb-1">📥 ติดตั้งสกิล (ซ้ายไปขวา)</label>
+                    <div id="p2_select_wrapper" class="space-y-1"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="flex flex-col items-center mb-8">
+            <button onclick="runSimulation()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-12 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] transform transition hover:scale-105 active:scale-95 text-xl tracking-wide">
+                ⚔️ เริ่มทดสอบการต่อสู้ (Calculate)
+            </button>
+            <div id="sim_error" class="hidden text-red-400 text-sm font-semibold mt-3">
+                ⚠️ กรุณาสร้างสกิลอย่างน้อย 1 สกิล และติดตั้งให้ตัวละคร
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SECTION 4: SIMULATION LOGS                 -->
+        <!-- ========================================== -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-[600px]">
+            
+            <!-- In-Game Log -->
+            <div class="bg-slate-900 rounded-xl border border-slate-700 shadow-lg flex flex-col h-full overflow-hidden">
+                <div class="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="font-semibold text-emerald-400">📜 In-Game Combat Log</h3>
+                    <span class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">หน้าจอผู้เล่น</span>
+                </div>
+                <div id="ui_log" class="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-2 text-sm">
+                    <div class="text-slate-500 text-center mt-10">กรุณาสร้างและติดตั้งสกิลก่อนกดเริ่มทดสอบ</div>
+                </div>
+            </div>
+
+            <!-- Battle Record JSON -->
+            <div class="bg-black rounded-xl border border-slate-700 shadow-lg flex flex-col h-full overflow-hidden">
+                <div class="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="font-semibold text-orange-400">🗄️ Battle Record (Firestore JSON)</h3>
+                    <span class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">หลังบ้าน (Backend)</span>
+                </div>
+                <pre id="fs_log" class="p-4 overflow-y-auto custom-scrollbar flex-1 text-xs text-green-400 font-mono whitespace-pre-wrap">
+// ข้อมูลการต่อสู้พร้อมจะถูกบันทึกลง Database
+                </pre>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Global Tooltip Container -->
+    <div id="global_tooltip" class="fixed pointer-events-none opacity-0 z-[9999] transition-opacity duration-150 w-64 bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-500 rounded-md shadow-[0_4px_25px_rgba(0,0,0,0.9)] p-3 text-left flex flex-col gap-1">
+        <div id="tt_name" class="font-bold text-yellow-400 text-sm border-b border-slate-600 pb-1"></div>
+        <div id="tt_badges" class="flex flex-wrap mt-1"></div>
+        <div class="text-[11px] text-slate-300 grid grid-cols-2 gap-1 my-1">
+            <div>⏱️ ร่าย: <span id="tt_cast" class="text-white font-semibold"></span>s</div>
+            <div>⏳ คูลดาวน์: <span id="tt_cd" class="text-white font-semibold"></span>s</div>
+        </div>
+        <div id="tt_desc" class="text-[12px] text-slate-300 leading-relaxed border-t border-slate-600 pt-2 mt-1"></div>
+    </div>
+
+    <script>
+        // -----------------------------------------------------------
+        // 1. DYNAMIC SKILL BUILDER SYSTEM
+        // -----------------------------------------------------------
+        let skillDB = {};
+        let skillCounter = 1;
+        let effectBlockCounter = 0;
+        let editingSkillId = null; // ตัวแปรเก็บสถานะว่ากำลังแก้ไขสกิลไหนอยู่
+
+        function removeEffectBlock(id) {
+            document.getElementById(id).remove();
+            updateLivePreview();
+        }
+
+        // อัปเกรดฟังก์ชันรองรับการโหลดข้อมูลเดิม (effData)
+        function addEffectBlock(preloadedType = null, effData = null) {
+            const type = preloadedType || document.getElementById('new_effect_type').value;
+            const blockId = `eff_block_${effectBlockCounter++}`;
+            
+            // ดึงค่าเป้าหมายเดิม ถ้าไม่มีให้คำนวณตามประเภท Type
+            const target = effData ? effData.target : (['DAMAGE', 'INTERRUPT', 'STUN', 'CONDITION'].includes(type) ? 'ENEMY' : 'SELF');
+            
+            let typeLabel = "";
+            let colorBorder = "";
+            let fieldsHtml = "";
+
+            let targetSelectHtml = `
+                <div class="mb-2">
+                    <label class="text-[10px] text-slate-400 mr-2">เป้าหมาย (Target):</label>
+                    <select class="eff-target bg-slate-900 border border-slate-600 rounded p-1 text-xs text-white" onchange="updateLivePreview()">
+                        <option value="ENEMY" ${target === 'ENEMY' ? 'selected' : ''}>ศัตรู (Enemy)</option>
+                        <option value="SELF" ${target === 'SELF' ? 'selected' : ''}>ตนเอง (Self)</option>
+                    </select>
+                </div>
+            `;
+
+            if (type === "CONDITION") {
+                typeLabel = "❓ ตรวจสอบเงื่อนไข (หยุดรันถ้าไม่ผ่าน)"; colorBorder = "border-yellow-500";
+                const cStat = effData ? effData.stat : "HP_PERCENT";
+                const cOp = effData ? effData.operator : "<=";
+                const cVal = effData ? effData.value : 50;
+                fieldsHtml = `
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <div>
+                            <label class="block text-[10px] text-slate-400">ตรวจสอบค่า</label>
+                            <select class="eff-condStat w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" onchange="updateLivePreview()">
+                                <option value="HP_PERCENT" ${cStat === 'HP_PERCENT' ? 'selected' : ''}>HP (%)</option>
+                                <option value="HP_CURRENT" ${cStat === 'HP_CURRENT' ? 'selected' : ''}>HP (หน่วย)</option>
+                                <option value="BASE_ATK" ${cStat === 'BASE_ATK' ? 'selected' : ''}>โจมตีพื้นฐาน</option>
+                                <option value="PHYS_DEF" ${cStat === 'PHYS_DEF' ? 'selected' : ''}>ป้องกันกายภาพ</option>
+                                <option value="MAG_DEF" ${cStat === 'MAG_DEF' ? 'selected' : ''}>ป้องกันเวทมนตร์</option>
+                                <option value="ACCURACY" ${cStat === 'ACCURACY' ? 'selected' : ''}>ความแม่นยำ</option>
+                                <option value="EVASION" ${cStat === 'EVASION' ? 'selected' : ''}>หลบหลีก</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400">ตัวดำเนินการ</label>
+                            <select class="eff-condOp w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" onchange="updateLivePreview()">
+                                <option value="<" ${cOp === '<' ? 'selected' : ''}>< (น้อยกว่า)</option>
+                                <option value="<=" ${cOp === '<=' ? 'selected' : ''}><= (น้อยกว่าหรือเท่ากับ)</option>
+                                <option value="==" ${cOp === '==' ? 'selected' : ''}>== (เท่ากับ)</option>
+                                <option value=">=" ${cOp === '>=' ? 'selected' : ''}>>= (มากกว่าหรือเท่ากับ)</option>
+                                <option value=">" ${cOp === '>' ? 'selected' : ''}>> (มากกว่า)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400">ค่าเปรียบเทียบ</label>
+                            <input type="number" class="eff-condVal w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${cVal}" oninput="updateLivePreview()">
+                        </div>
+                    </div>
+                `;
+            } else if (type === "DAMAGE") {
+                typeLabel = "⚔️ สร้างความเสียหาย"; colorBorder = "border-orange-600";
+                const dType = effData ? effData.dmgType : "PHYSICAL";
+                const dMult = effData ? effData.mult : 1.0;
+                const dMin = effData ? effData.baseMin : 10;
+                const dMax = effData ? effData.baseMax : 20;
+                fieldsHtml = `
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <div class="col-span-2">
+                            <label class="block text-[10px] text-slate-400">ประเภทความเสียหาย</label>
+                            <select class="eff-dmgType w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" onchange="updateLivePreview()">
+                                <option value="PHYSICAL" ${dType === 'PHYSICAL' ? 'selected' : ''}>กายภาพ (Physical)</option>
+                                <option value="MAGICAL" ${dType === 'MAGICAL' ? 'selected' : ''}>เวทมนตร์ (Magical)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400">ตัวคูณจาก ATK</label>
+                            <input type="number" class="eff-dmgMult w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${dMult}" step="0.1" oninput="updateLivePreview()">
+                        </div>
+                        <div class="grid grid-cols-2 gap-1">
+                            <div>
+                                <label class="block text-[10px] text-slate-400">Base ต่ำสุด</label>
+                                <input type="number" class="eff-dmgMin w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${dMin}" oninput="updateLivePreview()">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400">Base สูงสุด</label>
+                                <input type="number" class="eff-dmgMax w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${dMax}" oninput="updateLivePreview()">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (type === "HEAL") {
+                typeLabel = "💚 ฟื้นฟูพลังชีวิต"; colorBorder = "border-emerald-600";
+                const hBase = effData ? effData.base : 100;
+                fieldsHtml = `
+                    <div class="mt-2">
+                        <label class="block text-[10px] text-slate-400">ค่าฟื้นฟูพื้นฐาน</label>
+                        <input type="number" class="eff-healBase w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${hBase}" oninput="updateLivePreview()">
+                    </div>
+                `;
+            } else if (type === "INTERRUPT") {
+                typeLabel = "🛑 ขัดจังหวะการร่าย"; colorBorder = "border-red-600";
+                fieldsHtml = `<div class="text-xs text-slate-400 mt-2 italic">ไม่มีพารามิเตอร์เพิ่มเติม</div>`;
+            } else if (type === "STUN") {
+                typeLabel = "💫 สถานะมึนงง"; colorBorder = "border-purple-600";
+                const sChance = effData ? effData.chance : 1.0;
+                const sDur = effData ? effData.duration : 2.0;
+                fieldsHtml = `
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <div>
+                            <label class="block text-[10px] text-slate-400">โอกาสติด (0.0 - 1.0)</label>
+                            <input type="number" class="eff-stunChance w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${sChance}" step="0.1" oninput="updateLivePreview()">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400">ระยะเวลา (วินาที)</label>
+                            <input type="number" class="eff-stunDur w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${sDur}" step="0.5" oninput="updateLivePreview()">
+                        </div>
+                    </div>
+                `;
+            } else if (type === "BUFF_NEXT_SKILL") {
+                typeLabel = "🔥 บัฟสกิลถัดไป"; colorBorder = "border-pink-600";
+                const bMult = effData ? effData.mult : 2.0;
+                fieldsHtml = `
+                    <div class="mt-2">
+                        <label class="block text-[10px] text-slate-400">ตัวคูณความเสียหายสกิลถัดไป</label>
+                        <input type="number" class="eff-buffMult w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-xs text-white" value="${bMult}" step="0.5" oninput="updateLivePreview()">
+                    </div>
+                `;
+            }
+
+            const html = `
+                <div id="${blockId}" class="effect-block relative bg-slate-800 p-3 rounded-lg border-l-4 ${colorBorder} shadow-sm" data-type="${type}">
+                    <button onclick="removeEffectBlock('${blockId}')" class="absolute top-2 right-2 text-slate-500 hover:text-red-400 font-bold px-1">✕</button>
+                    <div class="font-semibold text-sm text-slate-200 mb-1">${typeLabel} <span class="text-[10px] text-slate-500 font-normal">(${type})</span></div>
+                    ${targetSelectHtml}
+                    ${fieldsHtml}
+                </div>
+            `;
+            
+            document.getElementById('dynamic_effects_container').insertAdjacentHTML('beforeend', html);
+            if (!effData) updateLivePreview();
+        }
+
+        function generateDraftSkill() {
+            // ใช้ ID เดิมถ้ากำลังแก้ไขอยู่
+            const id = editingSkillId ? editingSkillId : "SK_" + String(skillCounter).padStart(3, '0');
+            const skill = {
+                id: id,
+                name: document.getElementById('c_name').value.trim() || `สกิลใหม่ #${skillCounter}`,
+                castTime: parseFloat(document.getElementById('c_castTime').value) || 0,
+                cooldown: parseFloat(document.getElementById('c_cooldown').value) || 1.0,
+                uninterruptible: document.getElementById('c_uninterruptible').checked,
+                desc: document.getElementById('c_desc').value.trim() || "ไม่มีคำอธิบาย",
+                effects: []
+            };
+
+            const blocks = document.querySelectorAll('.effect-block');
+            blocks.forEach(block => {
+                const type = block.getAttribute('data-type');
+                const target = block.querySelector('.eff-target').value;
+                
+                let eff = { type: type, target: target };
+
+                if (type === "CONDITION") {
+                    eff.stat = block.querySelector('.eff-condStat').value;
+                    eff.operator = block.querySelector('.eff-condOp').value;
+                    eff.value = parseFloat(block.querySelector('.eff-condVal').value) || 0;
+                } else if (type === "DAMAGE") {
+                    eff.dmgType = block.querySelector('.eff-dmgType').value;
+                    eff.mult = parseFloat(block.querySelector('.eff-dmgMult').value) || 1.0;
+                    eff.baseMin = parseInt(block.querySelector('.eff-dmgMin').value) || 0;
+                    eff.baseMax = parseInt(block.querySelector('.eff-dmgMax').value) || 0;
+                } else if (type === "HEAL") {
+                    eff.base = parseInt(block.querySelector('.eff-healBase').value) || 0;
+                } else if (type === "STUN") {
+                    eff.chance = parseFloat(block.querySelector('.eff-stunChance').value) || 1.0;
+                    eff.duration = parseFloat(block.querySelector('.eff-stunDur').value) || 1.0;
+                } else if (type === "BUFF_NEXT_SKILL") {
+                    eff.buffType = "DAMAGE_MULT";
+                    eff.mult = parseFloat(block.querySelector('.eff-buffMult').value) || 2.0;
+                }
+
+                skill.effects.push(eff);
+            });
+
+            return skill;
+        }
+
+        function updateLivePreview() {
+            const draft = generateDraftSkill();
+            document.getElementById('live_json_preview').textContent = JSON.stringify(draft, null, 2);
+            document.getElementById('creator_error').classList.add('hidden');
+        }
+
+        // รีเซ็ตฟอร์มให้กลับเป็นโหมดสร้างใหม่
+        function resetForm() {
+            editingSkillId = null;
+            document.getElementById('c_name').value = "";
+            document.getElementById('c_desc').value = "";
+            document.getElementById('c_castTime').value = 0;
+            document.getElementById('c_cooldown').value = 3.0;
+            document.getElementById('c_uninterruptible').checked = false;
+            document.getElementById('dynamic_effects_container').innerHTML = "";
+            
+            // คืนค่า UI
+            document.getElementById('editing_badge').classList.add('hidden');
+            const saveBtn = document.getElementById('save_btn');
+            saveBtn.innerHTML = "💾 บันทึกสกิลเข้าสู่ระบบ";
+            saveBtn.classList.remove('w-2/3', 'from-yellow-600', 'to-orange-600', 'hover:from-yellow-500', 'hover:to-orange-500');
+            saveBtn.classList.add('w-full', 'from-purple-600', 'to-indigo-600', 'hover:from-purple-500', 'hover:to-indigo-500');
+            document.getElementById('cancel_edit_btn').classList.add('hidden');
+            
+            updateLivePreview();
+        }
+
+        function saveSkill() {
+            const skill = generateDraftSkill();
+            
+            if (skill.effects.length === 0) {
+                document.getElementById('creator_error').classList.remove('hidden');
+                return;
+            }
+
+            skillDB[skill.id] = skill;
+            
+            if (!editingSkillId) {
+                skillCounter++; // เพิ่ม Counter เฉพาะตอนสร้างใหม่
+            }
+
+            resetForm();
+            renderSkillLibrary();
+            renderSkillSelects();
+        }
+
+        // ฟังก์ชันโหลดสกิลเก่าขึ้นมาแก้
+        function editSkill(skillId) {
+            const skill = skillDB[skillId];
+            if (!skill) return;
+
+            editingSkillId = skillId;
+            document.getElementById('c_name').value = skill.name;
+            document.getElementById('c_desc').value = skill.desc;
+            document.getElementById('c_castTime').value = skill.castTime;
+            document.getElementById('c_cooldown').value = skill.cooldown;
+            document.getElementById('c_uninterruptible').checked = skill.uninterruptible;
+
+            document.getElementById('dynamic_effects_container').innerHTML = "";
+            
+            // โหลด Effect Blocks กลับมา
+            skill.effects.forEach(eff => {
+                addEffectBlock(eff.type, eff);
+            });
+
+            // เปลี่ยน UI ให้รู้ว่ากำลังแก้ไข
+            document.getElementById('editing_badge').classList.remove('hidden');
+            const saveBtn = document.getElementById('save_btn');
+            saveBtn.innerHTML = "💾 อัปเดตข้อมูลสกิล (Update)";
+            saveBtn.classList.remove('w-full', 'from-purple-600', 'to-indigo-600', 'hover:from-purple-500', 'hover:to-indigo-500');
+            saveBtn.classList.add('w-2/3', 'from-yellow-600', 'to-orange-600', 'hover:from-yellow-500', 'hover:to-orange-500');
+            document.getElementById('cancel_edit_btn').classList.remove('hidden');
+
+            updateLivePreview();
+            
+            // เลื่อนหน้าจอกลับขึ้นไปที่ฟอร์ม
+            document.getElementById('skill_form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ฟังก์ชันลบสกิล
+        function deleteSkill(skillId) {
+            if (!confirm(`ยืนยันการลบสกิล [${skillDB[skillId].name}] หรือไม่?\n*หากสกิลนี้ถูกติดตั้งอยู่ จะถูกถอดออกอัตโนมัติ`)) return;
+            
+            delete skillDB[skillId];
+            
+            // ถ้าลบสกิลที่กำลัง Edit อยู่ ให้รีเซ็ตฟอร์ม
+            if (editingSkillId === skillId) {
+                resetForm();
+            }
+
+            renderSkillLibrary();
+            renderSkillSelects();
+        }
+
+        // -----------------------------------------------------------
+        // 2. UI RENDERERS
+        // -----------------------------------------------------------
+        function renderSkillLibrary() {
+            const container = document.getElementById('skill_library_container');
+            let html = '';
+            
+            const skills = Object.values(skillDB);
+            if (skills.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-6 border border-dashed border-slate-700 rounded-lg">ยังไม่มีสกิลในระบบ กรุณาสร้างสกิลจากด้านบน</div>`;
+                return;
+            }
+
+            skills.forEach(sk => {
+                let badgeHtml = '';
+                if (sk.effects.some(e => e.type === "CONDITION")) badgeHtml += `<span class="inline-block bg-yellow-900/80 border border-yellow-500 text-yellow-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">❓ มีเงื่อนไข</span>`;
+                if (sk.effects.some(e => e.dmgType === "PHYSICAL")) badgeHtml += `<span class="inline-block bg-orange-900/50 border border-orange-700 text-orange-300 text-[10px] px-2 py-0.5 rounded-full mb-1 mr-1">⚔️ กายภาพ</span>`;
+                if (sk.effects.some(e => e.dmgType === "MAGICAL")) badgeHtml += `<span class="inline-block bg-blue-900/50 border border-blue-700 text-blue-300 text-[10px] px-2 py-0.5 rounded-full mb-1 mr-1">✨ เวทมนตร์</span>`;
+                if (sk.uninterruptible) badgeHtml += `<span class="inline-block bg-indigo-900/50 border border-indigo-700 text-indigo-300 text-[10px] px-2 py-0.5 rounded-full mb-1 mr-1">🛡️ Super Armor</span>`;
+                if (sk.effects.some(e => e.type === "INTERRUPT")) badgeHtml += `<span class="inline-block bg-red-900/50 border border-red-700 text-red-300 text-[10px] px-2 py-0.5 rounded-full mb-1 mr-1">🛑 ขัดจังหวะ</span>`;
+                if (sk.effects.some(e => e.type === "HEAL")) badgeHtml += `<span class="inline-block bg-emerald-900/50 border border-emerald-700 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full mb-1 mr-1">💚 ฟื้นฟู</span>`;
+                if (sk.effects.some(e => e.type === "STUN")) badgeHtml += `<span class="inline-block bg-purple-900/50 border border-purple-700 text-purple-300 text-[10px] px-2 py-0.5 rounded-full mb-1 mr-1">💫 มึนงง</span>`;
+                if (sk.effects.some(e => e.type === "BUFF_NEXT_SKILL")) badgeHtml += `<span class="inline-block bg-pink-900/50 border border-pink-700 text-pink-300 text-[10px] px-2 py-0.5 rounded-full mb-1 mr-1">🔥 บัฟสกิลถัดไป</span>`;
+
+                html += `
+                <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 flex flex-col hover:border-slate-500 transition-all shadow-md group">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-semibold text-white text-base">${sk.name} <span class="text-xs text-slate-500 font-normal">(${sk.id})</span></div>
+                        <div class="flex gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
+                            <button onclick="editSkill('${sk.id}')" title="แก้ไขสกิล" class="text-blue-400 hover:text-blue-300 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-xs">✏️</button>
+                            <button onclick="deleteSkill('${sk.id}')" title="ลบสกิล" class="text-red-400 hover:text-red-300 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-xs">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap mb-2">
+                        ${badgeHtml}
+                    </div>
+                    <div class="text-[11px] text-slate-400 mb-3 bg-slate-800 p-1.5 rounded text-center grid grid-cols-2 gap-2">
+                        <div>⏱️ เวลาร่าย: <span class="text-white">${sk.castTime}s</span></div>
+                        <div>⏳ คูลดาวน์: <span class="text-white">${sk.cooldown}s</span></div>
+                    </div>
+                    <div class="text-sm text-slate-300 leading-relaxed mt-auto border-t border-slate-800 pt-3">
+                        ${sk.desc}
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderSkillSelects() {
+            const p1Wrapper = document.getElementById('p1_select_wrapper');
+            const p2Wrapper = document.getElementById('p2_select_wrapper');
+            
+            const skills = Object.values(skillDB);
+            if (skills.length === 0) {
+                p1Wrapper.innerHTML = `<div class="text-xs text-slate-500 text-center italic py-2">ยังไม่มีสกิลให้เลือก</div>`;
+                p2Wrapper.innerHTML = `<div class="text-xs text-slate-500 text-center italic py-2">ยังไม่มีสกิลให้เลือก</div>`;
+                return;
+            }
+
+            // จดจำค่าเดิมที่เลือกไว้ (ถ้ามี)
+            let oldP1 = [];
+            let oldP2 = [];
+            for(let i=0; i<5; i++) {
+                const s1 = document.getElementById(`p1_sk_${i}`);
+                const s2 = document.getElementById(`p2_sk_${i}`);
+                if (s1) oldP1.push(s1.value);
+                if (s2) oldP2.push(s2.value);
+            }
+
+            let optionsHtml = `<option value="">-- ว่างเปล่า --</option>`;
+            optionsHtml += skills.map(sk => `<option value="${sk.id}">[${sk.cooldown}s] ${sk.name}</option>`).join('');
+
+            let p1Html = '';
+            let p2Html = '';
+            for(let i=0; i<5; i++) {
+                p1Html += `<div class="flex items-center gap-2"><span class="text-slate-500 text-xs w-4">${i+1}.</span><select id="p1_sk_${i}" class="flex-1 bg-slate-800 border border-slate-600 rounded p-1.5 text-xs text-white">${optionsHtml}</select></div>`;
+                p2Html += `<div class="flex items-center gap-2"><span class="text-slate-500 text-xs w-4">${i+1}.</span><select id="p2_sk_${i}" class="flex-1 bg-slate-800 border border-slate-600 rounded p-1.5 text-xs text-white">${optionsHtml}</select></div>`;
+            }
+            
+            p1Wrapper.innerHTML = p1Html;
+            p2Wrapper.innerHTML = p2Html;
+
+            // คืนค่าเดิมที่เลือกไว้ (ป้องกันบั๊กกรณีสกิลถูกลบไปแล้ว)
+            setTimeout(() => {
+                for(let i=0; i<5; i++) {
+                    const s1 = document.getElementById(`p1_sk_${i}`);
+                    const s2 = document.getElementById(`p2_sk_${i}`);
+                    
+                    if (oldP1[i] && skillDB[oldP1[i]]) s1.value = oldP1[i];
+                    else if (oldP1[i]) s1.value = ""; // ถ้าค่าเดิมคือสกิลที่ถูกลบไปแล้ว ให้เป็นช่องว่าง
+                    
+                    if (oldP2[i] && skillDB[oldP2[i]]) s2.value = oldP2[i];
+                    else if (oldP2[i]) s2.value = ""; 
+                }
+            }, 10);
+        }
+
+        updateLivePreview();
+        renderSkillSelects();
+
+        // -----------------------------------------------------------
+        // 3. CORE ENGINE: THE EVENT-DRIVEN TIMELINE (อัปเกรดระบบ Target)
+        // -----------------------------------------------------------
+        function runSimulation() {
+            document.getElementById('sim_error').classList.add('hidden');
+            
+            if (Object.keys(skillDB).length === 0) {
+                document.getElementById('sim_error').classList.remove('hidden');
+                return;
+            }
+
+            let p1CritStat = parseInt(document.getElementById('p1_critChance').value);
+            let p1 = {
+                id: "USER_01", name: "อัศวินฝึกหัด (เรา)", 
+                hp: parseInt(document.getElementById('p1_hp').value), maxHp: parseInt(document.getElementById('p1_hp').value),
+                baseAtk: parseInt(document.getElementById('p1_baseAtk').value), physAtk: parseInt(document.getElementById('p1_physAtk').value),
+                magAtk: parseInt(document.getElementById('p1_magAtk').value), critAtk: parseInt(document.getElementById('p1_critAtk').value),
+                baseDef: parseInt(document.getElementById('p1_baseDef').value), physDef: parseInt(document.getElementById('p1_physDef').value),
+                magDef: parseInt(document.getElementById('p1_magDef').value),
+                accuracy: parseInt(document.getElementById('p1_accuracy').value), evasion: parseInt(document.getElementById('p1_evasion').value),
+                critChance: p1CritStat / (100 + p1CritStat),
+                skills: [], cooldowns: {}, casting: null, stunUntil: 0, nextSkillDmgMult: 1.0 
+            };
+            
+            let p2CritStat = parseInt(document.getElementById('p2_critChance').value);
+            let p2 = {
+                id: "MONSTER_01", name: "ราชันย์ออร์ค (ศัตรู)", 
+                hp: parseInt(document.getElementById('p2_hp').value), maxHp: parseInt(document.getElementById('p2_hp').value),
+                baseAtk: parseInt(document.getElementById('p2_baseAtk').value), physAtk: parseInt(document.getElementById('p2_physAtk').value),
+                magAtk: parseInt(document.getElementById('p2_magAtk').value), critAtk: parseInt(document.getElementById('p2_critAtk').value),
+                baseDef: parseInt(document.getElementById('p2_baseDef').value), physDef: parseInt(document.getElementById('p2_physDef').value),
+                magDef: parseInt(document.getElementById('p2_magDef').value),
+                accuracy: parseInt(document.getElementById('p2_accuracy').value), evasion: parseInt(document.getElementById('p2_evasion').value),
+                critChance: p2CritStat / (100 + p2CritStat),
+                skills: [], cooldowns: {}, casting: null, stunUntil: 0, nextSkillDmgMult: 1.0
+            };
+
+            let hasSkill = false;
+            for(let i=0; i<5; i++) {
+                let p1SkId = document.getElementById(`p1_sk_${i}`)?.value;
+                let p2SkId = document.getElementById(`p2_sk_${i}`)?.value;
+                
+                if (p1SkId && skillDB[p1SkId]) {
+                    p1.skills.push(skillDB[p1SkId]);
+                    p1.cooldowns[p1SkId] = skillDB[p1SkId].cooldown;
+                    hasSkill = true;
+                }
+                if (p2SkId && skillDB[p2SkId]) {
+                    p2.skills.push(skillDB[p2SkId]);
+                    p2.cooldowns[p2SkId] = skillDB[p2SkId].cooldown;
+                    hasSkill = true;
+                }
+            }
+
+            if (!hasSkill) {
+                document.getElementById('sim_error').classList.remove('hidden');
+                return;
+            }
+
+            let t = 0; 
+            let timelineEvents = []; 
+            let fsLogData = { battleId: "BTL_" + Math.floor(Math.random()*10000), result: "", timeline: [] };
+            let uiLogHtml = "";
+            let currentLogTime = -1; 
+            
+            const addUiLog = (time, html) => { 
+                let timeStr = time.toFixed(1);
+                if (currentLogTime !== timeStr) {
+                    uiLogHtml += `
+                    <div class="mt-4 mb-2 flex items-center">
+                        <div class="bg-indigo-900/60 border border-indigo-700 text-indigo-300 text-[11px] font-semibold px-2 py-1 rounded shadow-sm">
+                            ⏱️ วินาทีที่ ${timeStr}
+                        </div>
+                        <div class="h-px bg-slate-700 flex-1 ml-2"></div>
+                    </div>`;
+                    currentLogTime = timeStr;
+                }
+                uiLogHtml += `<div class="mb-1 pl-4 border-l-2 border-slate-600 ml-4 py-0.5 leading-relaxed"> ${html}</div>`; 
+            };
+
+            addUiLog(0, `<span class="text-yellow-400 font-bold">เริ่มการต่อสู้! (รอโหลดสกิล...)</span>`);
+
+            timelineEvents.push({ t: 0, type: "THINK", entity: p1 });
+            timelineEvents.push({ t: 0, type: "THINK", entity: p2 });
+
+            let loopSafety = 0; 
+
+            while (timelineEvents.length > 0 && p1.hp > 0 && p2.hp > 0 && t < 60 && loopSafety < 500) {
+                loopSafety++;
+                
+                timelineEvents.sort((a, b) => a.t - b.t);
+                let event = timelineEvents.shift();
+                t = event.t;
+
+                let ent = event.entity;
+                let defaultEnemy = (ent === p1) ? p2 : p1;
+
+                if (event.type === "THINK") {
+                    if (ent.stunUntil > t) continue;
+                    if (ent.casting) continue; 
+
+                    let skillToUse = null;
+                    let nextAvailableTime = 999; 
+
+                    for (let skill of ent.skills) {
+                        let cdEnd = ent.cooldowns[skill.id] || 0;
+                        if (cdEnd <= t) {
+                            skillToUse = skill; 
+                            break; 
+                        } else {
+                            if (cdEnd < nextAvailableTime) nextAvailableTime = cdEnd;
+                        }
+                    }
+
+                    if (skillToUse) {
+                        if (skillToUse.castTime > 0) {
+                            ent.casting = skillToUse;
+                            addUiLog(t, `<span class="text-blue-300">⏳ ${ent.name} เริ่มร่าย <b class="skill-hoverable cursor-help underline decoration-dotted decoration-blue-400 underline-offset-4 text-blue-300 transition-colors hover:text-blue-200" data-skill-id="${skillToUse.id}">[${skillToUse.name}]</b>...</span>`);
+                            fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "CAST", sk: skillToUse.id });
+                            
+                            timelineEvents.push({ t: t + skillToUse.castTime, type: "EXECUTE", entity: ent, skill: skillToUse });
+                        } else {
+                            timelineEvents.push({ t: t, type: "EXECUTE", entity: ent, skill: skillToUse });
+                        }
+                    } else {
+                        if (nextAvailableTime < 999) {
+                            timelineEvents.push({ t: nextAvailableTime, type: "THINK", entity: ent });
+                        }
+                    }
+                }
+
+                else if (event.type === "EXECUTE") {
+                    let skill = event.skill;
+
+                    if (skill.castTime > 0 && ent.casting !== skill) {
+                        continue; 
+                    }
+
+                    ent.casting = null; 
+                    ent.cooldowns[skill.id] = t + skill.cooldown; 
+                    
+                    addUiLog(t, `<span class="text-white">⚔️ ${ent.name} ใช้งาน <b class="skill-hoverable cursor-help underline decoration-dotted decoration-indigo-400 underline-offset-4 text-indigo-300 transition-colors hover:text-indigo-200" data-skill-id="${skill.id}">[${skill.name}]</b>!</span>`);
+                    fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "USE", sk: skill.id });
+
+                    let hadNextSkillBuff = ent.nextSkillDmgMult > 1.0;
+                    let currentSkillMult = ent.nextSkillDmgMult;
+
+                    // เช็คการหลบหลีก (เช็คเฉพาะ Effect เชิงรุกที่มีเป้าหมายเป็น ENEMY)
+                    let isOffensiveEnemy = skill.effects.some(e => ["DAMAGE", "INTERRUPT", "STUN"].includes(e.type) && e.target === "ENEMY");
+                    let isHit = true;
+
+                    if (isOffensiveEnemy) {
+                        let hitChance = ent.accuracy / (100 + defaultEnemy.evasion);
+                        isHit = Math.random() < hitChance;
+                        
+                        if (!isHit) {
+                            addUiLog(t, `<span class="text-slate-400 pl-4 font-semibold italic">💨 พลาดเป้า! ${defaultEnemy.name} หลบหลีกการโจมตีได้</span>`);
+                            fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "MISS", tgt: defaultEnemy.id });
+                        }
+                    }
+
+                    // --- การประมวลผลตาม Rule-based Effects ---
+                    for (let eff of skill.effects) {
+                        
+                        let actualTarget = (eff.target === "SELF") ? ent : defaultEnemy;
+
+                        // ===== ระบบตรวจสอบเงื่อนไข (Condition Gate) =====
+                        if (eff.type === "CONDITION") {
+                            let statValue = 0;
+                            // ดึงค่า Status ที่ต้องการตรวจสอบ
+                            switch (eff.stat) {
+                                case "HP_PERCENT": statValue = (actualTarget.hp / actualTarget.maxHp) * 100; break;
+                                case "HP_CURRENT": statValue = actualTarget.hp; break;
+                                case "BASE_ATK": statValue = actualTarget.baseAtk; break;
+                                case "PHYS_DEF": statValue = actualTarget.physDef; break;
+                                case "MAG_DEF": statValue = actualTarget.magDef; break;
+                                case "ACCURACY": statValue = actualTarget.accuracy; break;
+                                case "EVASION": statValue = actualTarget.evasion; break;
+                            }
+
+                            let conditionMet = false;
+                            // เปรียบเทียบค่า
+                            switch (eff.operator) {
+                                case "<": conditionMet = statValue < eff.value; break;
+                                case "<=": conditionMet = statValue <= eff.value; break;
+                                case "==": conditionMet = statValue === eff.value; break;
+                                case ">=": conditionMet = statValue >= eff.value; break;
+                                case ">": conditionMet = statValue > eff.value; break;
+                            }
+
+                            // หากเงื่อนไขเป็น "เท็จ" ให้หยุดทำคำสั่งต่อๆ ไปในสกิลนี้ทันที (break ออกจากลูป for)
+                            if (!conditionMet) {
+                                addUiLog(t, `<span class="text-slate-500 pl-4 text-xs italic">...เงื่อนไขไม่ผ่าน ข้ามการทำงานที่เหลือ</span>`);
+                                fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "COND_FAIL", sk: skill.id });
+                                break; 
+                            }
+                            // ถ้าผ่าน ก็จะรันลูปคำสั่งถัดไปตามปกติ
+                        }
+
+                        if (eff.type === "BUFF_NEXT_SKILL") {
+                            actualTarget.nextSkillDmgMult = eff.mult; // บัฟให้ Target ที่ระบุ
+                            addUiLog(t, `<span class="text-pink-400 pl-4 font-bold">🔥 ${actualTarget.name} รวบรวมพลัง! สกิลถัดไปจะรุนแรงขึ้น ${eff.mult} เท่า</span>`);
+                            fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "BUFF_NEXT", tgt: actualTarget.id, mult: eff.mult });
+                            hadNextSkillBuff = false; 
+                        }
+
+                        // ถ้าเป็นท่าโจมตีศัตรูแต่พลาดเป้า ให้ข้ามคำสั่งนั้นไป
+                        if (["DAMAGE", "INTERRUPT", "STUN"].includes(eff.type) && eff.target === "ENEMY" && !isHit) {
+                            continue;
+                        }
+
+                        if (eff.type === "DAMAGE") {
+                            let baseDmg = eff.base !== undefined ? eff.base : (Math.floor(Math.random() * (eff.baseMax - eff.baseMin + 1)) + eff.baseMin);
+                            let incomingDamage = 0;
+                            let targetDefTotal = 0;
+                            let dmgTypeStr = "";
+
+                            if (eff.dmgType === "PHYSICAL") {
+                                incomingDamage = (ent.baseAtk + ent.physAtk) * eff.mult + baseDmg;
+                                targetDefTotal = actualTarget.baseDef + actualTarget.physDef;
+                                dmgTypeStr = "กายภาพ";
+                            } else if (eff.dmgType === "MAGICAL") {
+                                incomingDamage = (ent.baseAtk + ent.magAtk) * eff.mult + baseDmg;
+                                targetDefTotal = actualTarget.baseDef + actualTarget.magDef;
+                                dmgTypeStr = "เวทมนตร์";
+                            }
+
+                            incomingDamage = incomingDamage * currentSkillMult;
+
+                            let isCrit = Math.random() < ent.critChance;
+                            if (isCrit) {
+                                incomingDamage = (incomingDamage * 2) + ent.critAtk;
+                            }
+
+                            let defMultiplier = 100 / (100 + targetDefTotal);
+                            let finalDmg = Math.max(1, Math.floor(incomingDamage * defMultiplier));
+                            
+                            actualTarget.hp -= finalDmg;
+                            
+                            let critBadge = isCrit ? `<span class="text-red-400 font-bold ml-1 border border-red-500 bg-red-900/40 text-[10px] px-1 py-0.5 rounded">💥 คริติคอล!</span>` : "";
+                            let buffBadge = currentSkillMult > 1.0 ? `<span class="text-pink-300 font-bold ml-1 text-[11px]">(บัฟ x${currentSkillMult})</span>` : "";
+                            let colorClass = eff.dmgType === "PHYSICAL" ? "text-orange-400" : "text-blue-400";
+                            
+                            addUiLog(t, `<span class="${colorClass} pl-4">🗡️ สร้างความเสียหาย${dmgTypeStr} ${finalDmg} หน่วยให้ ${actualTarget.name}${buffBadge}${critBadge} <span class="text-slate-500">(HP: ${Math.max(0, actualTarget.hp)})</span></span>`);
+                            fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "DMG", tgt: actualTarget.id, val: finalDmg, isCrit: isCrit, buffMult: currentSkillMult });
+                        }
+
+                        if (eff.type === "HEAL") {
+                            actualTarget.hp = Math.min(actualTarget.maxHp, actualTarget.hp + eff.base);
+                            addUiLog(t, `<span class="text-emerald-400 pl-4">💚 ฟื้นฟูเลือดให้ ${actualTarget.name} ${eff.base} หน่วย <span class="text-slate-500">(HP: ${actualTarget.hp})</span></span>`);
+                            fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "HEAL", tgt: actualTarget.id, val: eff.base });
+                        }
+
+                        if (eff.type === "INTERRUPT") {
+                            if (actualTarget.casting) { 
+                                let targetSkill = actualTarget.casting;
+                                if (targetSkill.uninterruptible) {
+                                    addUiLog(t, `<span class="text-indigo-400 pl-4">🛡️ ${actualTarget.name} ต้านทานการขัดจังหวะ!</span>`);
+                                    fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "INT_FAIL", tgt: actualTarget.id });
+                                } else {
+                                    actualTarget.casting = null; 
+                                    actualTarget.cooldowns[targetSkill.id] = t + targetSkill.cooldown;
+                                    addUiLog(t, `<span class="text-red-400 pl-4 font-bold">🛑 ขัดจังหวะการร่ายของ ${actualTarget.name} สำเร็จ!</span>`);
+                                    fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "INT_SUCCESS", tgt: actualTarget.id });
+                                    timelineEvents.push({ t: t, type: "THINK", entity: actualTarget });
+                                }
+                            }
+                        }
+
+                        if (eff.type === "STUN") {
+                            if (Math.random() < eff.chance) { 
+                                if (actualTarget.casting && actualTarget.casting.uninterruptible) {
+                                    addUiLog(t, `<span class="text-indigo-400 pl-4">🛡️ ${actualTarget.name} ต้านทานสถานะมึนงง!</span>`);
+                                    fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "STUN_FAIL", tgt: actualTarget.id });
+                                } else {
+                                    let interruptMsg = "";
+                                    if (actualTarget.casting) {
+                                        actualTarget.cooldowns[actualTarget.casting.id] = t + actualTarget.casting.cooldown;
+                                        actualTarget.casting = null;
+                                        interruptMsg = " <span class='text-xs text-red-400'>(ขัดจังหวะการร่าย)</span>";
+                                    }
+                                    
+                                    actualTarget.stunUntil = Math.max(actualTarget.stunUntil, t + eff.duration);
+                                    addUiLog(t, `<span class="text-purple-400 pl-4 font-bold">💫 ทำให้ ${actualTarget.name} มึนงง ${eff.duration} วินาที!${interruptMsg}</span>`);
+                                    fsLogData.timeline.push({ t: Number(t.toFixed(1)), c: ent.id, act: "STUN", tgt: actualTarget.id, dur: eff.duration });
+                                    
+                                    timelineEvents.push({ t: actualTarget.stunUntil, type: "THINK", entity: actualTarget });
+                                }
+                            }
+                        }
+                    }
+
+                    if (hadNextSkillBuff) {
+                        ent.nextSkillDmgMult = 1.0; 
+                    }
+
+                    timelineEvents.push({ t: t, type: "THINK", entity: ent });
+                }
+                
+                if (timelineEvents.length === 0 || timelineEvents[0].t > t) {
+                    if (p1.hp <= 0 && p2.hp <= 0) break; 
+                    else if (p1.hp <= 0 || p2.hp <= 0) break; 
+                }
+            } 
+
+            if (p1.hp <= 0 && p2.hp <= 0) {
+                addUiLog(t, `<span class="text-slate-400 font-bold text-lg mt-2 block">🤝 สิ้นสภาพการต่อสู้พร้อมกัน (เสมอ)!</span>`);
+                fsLogData.result = "DOUBLE_KO";
+            } else if (p2.hp <= 0) {
+                addUiLog(t, `<span class="text-yellow-400 font-bold text-lg mt-2 block">🎉 ${p1.name} ชนะการต่อสู้!</span>`);
+                fsLogData.result = p1.id + "_WIN";
+            } else if (p1.hp <= 0) {
+                addUiLog(t, `<span class="text-red-500 font-bold text-lg mt-2 block">💀 ${p1.name} พ่ายแพ้!</span>`);
+                fsLogData.result = p2.id + "_WIN";
+            } else {
+                addUiLog(t, `<span class="text-slate-400 font-bold text-lg mt-2 block">⏳ หมดเวลาการต่อสู้ (เสมอ)</span>`);
+                fsLogData.result = "TIME_OUT";
+            }
+
+            document.getElementById('ui_log').innerHTML = uiLogHtml;
+            const uiLogEl = document.getElementById('ui_log');
+            uiLogEl.scrollTop = uiLogEl.scrollHeight;
+
+            document.getElementById('fs_log').textContent = JSON.stringify(fsLogData, null, 2);
+        }
+
+        // -----------------------------------------------------------
+        // 4. TOOLTIP SYSTEM
+        // -----------------------------------------------------------
+        document.addEventListener('mouseover', (e) => {
+            const target = e.target.closest('.skill-hoverable');
+            if (target) {
+                const skillId = target.getAttribute('data-skill-id');
+                const skill = skillDB[skillId];
+                if (skill) {
+                    const tooltip = document.getElementById('global_tooltip');
+                    
+                    document.getElementById('tt_name').textContent = skill.name;
+                    document.getElementById('tt_cast').textContent = skill.castTime;
+                    document.getElementById('tt_cd').textContent = skill.cooldown;
+                    document.getElementById('tt_desc').textContent = skill.desc;
+
+                    let badgeHtml = '';
+                    if (skill.effects.some(eff => eff.type === "CONDITION")) badgeHtml += `<span class="inline-block bg-yellow-900/80 border border-yellow-500 text-yellow-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">❓ มีเงื่อนไข</span>`;
+                    if (skill.effects.some(eff => eff.dmgType === "PHYSICAL")) badgeHtml += `<span class="inline-block bg-orange-900/80 border border-orange-500 text-orange-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">⚔️ กายภาพ</span>`;
+                    if (skill.effects.some(eff => eff.dmgType === "MAGICAL")) badgeHtml += `<span class="inline-block bg-blue-900/80 border border-blue-500 text-blue-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">✨ เวทมนตร์</span>`;
+                    if (skill.uninterruptible) badgeHtml += `<span class="inline-block bg-indigo-900/80 border border-indigo-500 text-indigo-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">🛡️ Super Armor</span>`;
+                    if (skill.effects.some(eff => eff.type === "INTERRUPT")) badgeHtml += `<span class="inline-block bg-red-900/80 border border-red-500 text-red-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">🛑 ขัดจังหวะ</span>`;
+                    if (skill.effects.some(eff => eff.type === "HEAL")) badgeHtml += `<span class="inline-block bg-emerald-900/80 border border-emerald-500 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">💚 ฟื้นฟู</span>`;
+                    if (skill.effects.some(eff => eff.type === "STUN")) badgeHtml += `<span class="inline-block bg-purple-900/80 border border-purple-500 text-purple-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">💫 มึนงง</span>`;
+                    if (skill.effects.some(eff => eff.type === "BUFF_NEXT_SKILL")) badgeHtml += `<span class="inline-block bg-pink-900/80 border border-pink-500 text-pink-200 text-[10px] px-1.5 py-0.5 rounded mb-1 mr-1">🔥 บัฟสกิลถัดไป</span>`;
+                    
+                    document.getElementById('tt_badges').innerHTML = badgeHtml;
+                    
+                    positionTooltip(e, tooltip);
+                    tooltip.classList.remove('opacity-0');
+                    tooltip.classList.add('opacity-100');
+                }
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            if (e.target.closest('.skill-hoverable')) {
+                const tooltip = document.getElementById('global_tooltip');
+                tooltip.classList.remove('opacity-100');
+                tooltip.classList.add('opacity-0');
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            const tooltip = document.getElementById('global_tooltip');
+            if (tooltip.classList.contains('opacity-100')) {
+                positionTooltip(e, tooltip);
+            }
+        });
+
+        function positionTooltip(e, tooltip) {
+            let x = e.clientX + 15;
+            let y = e.clientY + 15;
+            
+            const rect = tooltip.getBoundingClientRect();
+            const tooltipWidth = 256; 
+            
+            if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15;
+            if (y + rect.height > window.innerHeight) y = e.clientY - rect.height - 15;
+            
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+        }
+    </script>
+</body>
+</html>
